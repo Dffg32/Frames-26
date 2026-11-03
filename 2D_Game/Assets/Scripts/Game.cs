@@ -5,8 +5,8 @@ using UnityEngine.InputSystem;
 // follows the player with the camera and draws the HUD.
 public class Game : MonoBehaviour
 {
-    // # ground   B stone   ! bonus block   = one-way plank   o coin
-    // E enemy    P player start            F goal gem
+    // # ground   B stone (breakable when big)   ! bonus block (coin)   M bonus block (grow berry)
+    // = one-way plank   o coin   E enemy   P player start   F goal gem
     public static readonly string[] Map =
     {
         "",
@@ -17,7 +17,7 @@ public class Game : MonoBehaviour
         ".........................................................................======",
         ".......................................................................................................................##",
         "...........................................................ooooooo....................................................###",
-        "..............!...B!B!B...................................=========.......................BBB!BBB.........B!B........####",
+        "..............M...B!B!B...................................=========.......................BBBMBBB.........B!B........####",
         ".......................................ooooo..##.....................ooooo.......................ooooo..............#####",
         "............................##................##......................................##...........................######",
         "...P..................E.....##.....E..........##..E....E......E.................E.....##....E..E..............E...#######.....F",
@@ -164,9 +164,10 @@ public class Game : MonoBehaviour
                 switch (row[x])
                 {
                     case '#': Tile(pos, IsSolid(x, y - 1) ? PixelArt.Dirt : PixelArt.Grass, "Ground"); break;
-                    case 'B': Tile(pos, PixelArt.Stone, "Stone"); break;
+                    case 'B': SpawnBrick(pos); break;
                     case '=': Tile(pos, PixelArt.Plank, "Plank"); break;
-                    case '!': SpawnBonusBlock(pos); break;
+                    case '!': SpawnBonusBlock(pos, false); break;
+                    case 'M': SpawnBonusBlock(pos, true); break;
                     case 'o': SpawnCoin(pos); break;
                     case 'E': SpawnEnemy(pos); break;
                     case 'F': SpawnGoal(pos); break;
@@ -189,15 +190,16 @@ public class Game : MonoBehaviour
     }
 
     static bool IsSolid(int x, int y) =>
-        y >= 0 && y < Map.Length && x >= 0 && x < Map[y].Length && "#B!".IndexOf(Map[y][x]) >= 0;
+        y >= 0 && y < Map.Length && x >= 0 && x < Map[y].Length && "#B!M".IndexOf(Map[y][x]) >= 0;
 
-    // One collider per horizontal run of tiles, so the player doesn't snag on seams.
+    // One collider per horizontal run of ground or planks, so the player doesn't snag on seams.
+    // Stone and bonus blocks get their own collider because they can be hit one by one.
     void AddRowColliders(string row, float worldY)
     {
         for (int x = 0; x < row.Length;)
         {
             char c = row[x];
-            if (c != '#' && c != 'B' && c != '=') { x++; continue; }
+            if (c != '#' && c != '=') { x++; continue; }
             int start = x;
             while (x < row.Length && row[x] == c) x++;
             int length = x - start;
@@ -233,11 +235,18 @@ public class Game : MonoBehaviour
         return go;
     }
 
-    void SpawnBonusBlock(Vector2 pos)
+    void SpawnBrick(Vector2 pos)
+    {
+        var go = Tile(pos, PixelArt.Stone, "Stone");
+        go.AddComponent<BoxCollider2D>().sharedMaterial = Slippery;
+        go.AddComponent<Brick>();
+    }
+
+    void SpawnBonusBlock(Vector2 pos, bool holdsPowerUp)
     {
         var go = Tile(pos, PixelArt.Bonus, "BonusBlock");
         go.AddComponent<BoxCollider2D>().sharedMaterial = Slippery;
-        go.AddComponent<BonusBlock>();
+        go.AddComponent<BonusBlock>().HoldsPowerUp = holdsPowerUp;
     }
 
     void SpawnCoin(Vector2 pos)
@@ -274,16 +283,14 @@ public class Game : MonoBehaviour
 
     void SpawnPlayer(Vector2 pos)
     {
-        var go = Tile(pos, PixelArt.Hero, "Player", 10);
+        // The player's position is at its feet (bottom of the tile).
+        var go = Tile(pos + Vector2.down * 0.5f, PixelArt.Hero, "Player", 10);
         var body = go.AddComponent<Rigidbody2D>();
         body.gravityScale = 4f;
         body.freezeRotation = true;
         body.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
         body.interpolation = RigidbodyInterpolation2D.Interpolate;
-        var capsule = go.AddComponent<CapsuleCollider2D>();
-        capsule.size = new Vector2(0.7f, 0.94f);
-        capsule.offset = new Vector2(0f, -0.03f);
-        capsule.sharedMaterial = Slippery;
+        go.AddComponent<CapsuleCollider2D>().sharedMaterial = Slippery;
         player = go.AddComponent<PlayerController>();
     }
 }

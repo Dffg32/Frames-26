@@ -34,7 +34,7 @@ static class LevelPreview
                 {
                     '#' => y > 0 && x < map[y - 1].Length && map[y - 1][x] == '#' ? PixelArt.Dirt : PixelArt.Grass,
                     'B' => PixelArt.Stone,
-                    '!' => PixelArt.Bonus,
+                    '!' or 'M' => PixelArt.Bonus,
                     '=' => PixelArt.Plank,
                     'o' => PixelArt.Coin,
                     'E' => PixelArt.Slime,
@@ -45,7 +45,8 @@ static class LevelPreview
                 if (sprite == null) continue;
                 var tile = new GameObject(map[y][x].ToString()) { hideFlags = HideFlags.DontSave | HideFlags.NotEditable };
                 tile.transform.SetParent(root.transform);
-                tile.transform.position = new Vector2(x, map.Length - 1 - y);
+                // The hero's sprite is anchored at its feet, so it goes half a tile lower.
+                tile.transform.position = new Vector2(x, map.Length - 1 - y - (map[y][x] == 'P' ? 0.5f : 0f));
                 PixelArt.AddRenderer(tile, sprite);
             }
     }

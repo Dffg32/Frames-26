@@ -74,11 +74,62 @@ public static class PixelArt
         "DdDDDDDDDDDDDDdD",
     };
 
-    static Sprite hero, heroWalk, grass, dirt, stone, bonus, usedBonus, plank, coin, slime, slimeFlat, gem, cloud;
+    // Big hero: same head, taller body and legs (16x32).
+    static readonly string[] HeroBigTop = Concat(HeroTop[..10],
+        "...BBBBBBBBBB...",
+        "..BBBBBBBBBBBB..",
+        "..BBBBYBBYBBBB..",
+        ".SBBBBBBBBBBBBS.",
+        ".SBBBBBBBBBBBBS.",
+        ".SSBBBBBBBBBBSS.",
+        ".SS.BBBBBBBB.SS.",
+        "....BBBBBBBB....",
+        "....BBBBBBBB....",
+        "....KKKKKKKK....",
+        "....BBBBBBBB....",
+        "....BBBBBBBB....");
+
+    static Sprite hero, heroWalk, heroBig, heroBigWalk, grass, dirt, stone, bonus, usedBonus, plank, coin, slime, slimeFlat, gem, cloud, berry, brickBit;
     static Material material;
 
-    public static Sprite Hero => hero ? hero : hero = Make(Concat(HeroTop, "....KKK..KKK....", "...KKKK..KKKK..."));
-    public static Sprite HeroWalk => heroWalk ? heroWalk : heroWalk = Make(Concat(HeroTop, "...KKK....KKK...", "..KKK......KKK.."));
+    // Hero sprites have their pivot at the feet, so growing or shrinking keeps them on the ground.
+    static readonly Vector2 Feet = new(0.5f, 0f);
+
+    public static Sprite Hero => hero ? hero : hero = Make(Concat(HeroTop, "....KKK..KKK....", "...KKKK..KKKK..."), Feet);
+    public static Sprite HeroWalk => heroWalk ? heroWalk : heroWalk = Make(Concat(HeroTop, "...KKK....KKK...", "..KKK......KKK.."), Feet);
+
+    public static Sprite HeroBig => heroBig ? heroBig : heroBig = Make(Concat(Concat(HeroBigTop, Repeat(new[] { "....BBB..BBB...." }, 8)),
+        "...KKKK..KKKK...",
+        "..KKKKK..KKKKK.."), Feet);
+
+    public static Sprite HeroBigWalk => heroBigWalk ? heroBigWalk : heroBigWalk = Make(Concat(Concat(HeroBigTop,
+        Repeat(new[] { "...BBB....BBB..." }, 4)), Concat(Repeat(new[] { "..BBB......BBB.." }, 4),
+        "..KKK......KKK..",
+        ".KKKK......KKKK.")), Feet);
+
+    // The grow power-up: a red berry with a leaf.
+    public static Sprite Berry => berry ? berry : berry = Make(new[]
+    {
+        "",
+        "........gG......",
+        ".......gG.......",
+        ".....RRgRRR.....",
+        "...RRRRRRRRRR...",
+        "..RRWWRRRRRRRR..",
+        "..RWWRRRRRRRRR..",
+        ".RRWRRRRRRRRRRR.",
+        ".RRRRRRRRRRRRRR.",
+        ".RRRRRRRRRRRRRR.",
+        ".RRRRRRRRRRRRMR.",
+        "..RRRRRRRRRRMR..",
+        "..RRRRRRRRRMMR..",
+        "...RRRRRRRRRR...",
+        "....MMRRRRMM....",
+        "",
+    });
+
+    // A piece of a broken stone block.
+    public static Sprite BrickBit => brickBit ? brickBit : brickBit = Make(new[] { "aAAa", "ALAa", "AAAa", "aaaa" });
 
     public static Sprite Grass => grass ? grass : grass = Make(Concat(new[]
     {
@@ -209,7 +260,9 @@ public static class PixelArt
         return sr;
     }
 
-    static Sprite Make(string[] rows)
+    static Sprite Make(string[] rows) => Make(rows, new Vector2(0.5f, 0.5f));
+
+    static Sprite Make(string[] rows, Vector2 pivot)
     {
         int h = rows.Length, w = 0;
         foreach (var r in rows) w = Mathf.Max(w, r.Length);
@@ -227,7 +280,7 @@ public static class PixelArt
             }
         tex.SetPixels32(pixels);
         tex.Apply();
-        return Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), 16);
+        return Sprite.Create(tex, new Rect(0, 0, w, h), pivot, 16);
     }
 
     static string[] Concat(string[] a, params string[] b)

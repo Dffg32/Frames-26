@@ -1,7 +1,10 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 // Arrows / A-D to move, Space / W / Up to jump (hold for a higher jump). Gamepad works too.
+// Grabbing a berry makes the player big: big players can smash stone blocks and
+// survive one hit (they shrink back and blink for a moment instead of dying).
 public class PlayerController : MonoBehaviour
 {
     const float RunSpeed = 7f;
@@ -12,23 +15,25 @@ public class PlayerController : MonoBehaviour
     const float JumpBuffer = 0.12f;
     const float NormalGravity = 4f;
     const float ShortJumpGravity = 9f;
+    const float InvincibleTime = 2f;
 
     Rigidbody2D body;
-    Collider2D col;
+    CapsuleCollider2D col;
     SpriteRenderer sprite;
-    float lastGroundedTime = -1f, lastJumpPressTime = -1f, walkTimer;
-    bool dead, frozen;
+    float lastGroundedTime = -1f, lastJumpPressTime = -1f, walkTimer, invincibleUntil;
+    bool dead, frozen, big, transforming;
 
     void Awake()
     {
         body = GetComponent<Rigidbody2D>();
-        col = GetComponent<Collider2D>();
+        col = GetComponent<CapsuleCollider2D>();
         sprite = GetComponent<SpriteRenderer>();
+        SetBig(false);
     }
 
     void Update()
     {
-        if (dead || frozen) return;
+        if (dead || frozen || transforming) return;
 
         float input = 0f;
         bool jumpPressed = false, jumpHeld = false;
@@ -66,7 +71,10 @@ public class PlayerController : MonoBehaviour
 
         if (input != 0f) sprite.flipX = input < 0f;
         walkTimer = grounded && Mathf.Abs(v.x) > 0.5f ? walkTimer + Time.deltaTime : 0f;
-        sprite.sprite = !grounded || (int)(walkTimer * 10f) % 2 == 1 ? PixelArt.HeroWalk : PixelArt.Hero;
+        bool walkFrame = !grounded || (int)(walkTimer * 10f) % 2 == 1;
+        sprite.sprite = big
+            ? walkFrame ? PixelArt.HeroBigWalk : PixelArt.HeroBig
+            : walkFrame ? PixelArt.HeroWalk : PixelArt.Hero;
 
         if (transform.position.y < -2f) Die();
     }
@@ -95,11 +103,12 @@ public class PlayerController : MonoBehaviour
                 body.linearVelocity = new Vector2(body.linearVelocity.x, StompBounce);
                 Game.Instance.AddScore(100);
             }
-            else Die();
+            else Hurt();
         }
-        else if (other.TryGetComponent(out BonusBlock block) && mine.max.y <= other.bounds.min.y + 0.15f)
+        else if (mine.max.y <= other.bounds.min.y + 0.15f)
         {
-            block.Hit();
+            if (other.TryGetComponent(out BonusBlock block)) block.Hit();
+            else if (other.TryGetComponent(out Brick brick)) brick.Hit(big);
         }
     }
 
@@ -107,7 +116,67 @@ public class PlayerController : MonoBehaviour
     {
         if (dead || frozen) return;
         if (other.TryGetComponent(out Coin coin)) coin.Collect();
+        else if (other.TryGetComponent(out PowerUp powerUp)) powerUp.Collect(this);
         else if (other.TryGetComponent(out Goal _)) Game.Instance.Win();
+    }
+
+    public void PowerUp()
+    {
+        Game.Instance.AddScore(1000);
+        if (!big && !transforming) StartCoroutine(ChangeSize(true));
+    }
+
+    void Hurt()
+    {
+        if (transforming || Time.time < invincibleUntil) return;
+        if (!big)
+        {
+            Die();
+            return;
+        }
+        StartCoroutine(ChangeSize(false));
+        StartCoroutine(Invincibility());
+    }
+
+    // Pauses the game briefly while the player flickers between sizes.
+    IEnumerator ChangeSize(bool grow)
+    {
+        transforming = true;
+        Time.timeScale = 0f;
+        for (int i = 0; i < 9; i++)
+        {
+            sprite.sprite = (i % 2 == 0) == grow ? PixelArt.HeroBig : PixelArt.Hero;
+            yield return new WaitForSecondsRealtime(0.08f);
+        }
+        SetBig(grow);
+        Time.timeScale = 1f;
+        transforming = false;
+    }
+
+    // After shrinking, enemies pass through the blinking player for a moment.
+    IEnumerator Invincibility()
+    {
+        invincibleUntil = Time.time + InvincibleTime;
+        var enemies = FindObjectsByType<Enemy>();
+        foreach (var e in enemies) Physics2D.IgnoreCollision(col, e.GetComponent<Collider2D>(), true);
+
+        while (Time.time < invincibleUntil && !dead)
+        {
+            sprite.enabled = !sprite.enabled;
+            yield return new WaitForSeconds(0.08f);
+        }
+        sprite.enabled = true;
+        foreach (var e in enemies)
+            if (e != null) Physics2D.IgnoreCollision(col, e.GetComponent<Collider2D>(), false);
+    }
+
+    void SetBig(bool value)
+    {
+        big = value;
+        sprite.sprite = big ? PixelArt.HeroBig : PixelArt.Hero;
+        // The transform sits at the player's feet, so only the collider's height changes.
+        col.size = big ? new Vector2(0.8f, 1.9f) : new Vector2(0.7f, 0.94f);
+        col.offset = new Vector2(0f, col.size.y / 2f);
     }
 
     public void Freeze()
@@ -115,17 +184,20 @@ public class PlayerController : MonoBehaviour
         frozen = true;
         body.linearVelocity = Vector2.zero;
         body.bodyType = RigidbodyType2D.Kinematic;
-        sprite.sprite = PixelArt.Hero;
+        sprite.sprite = big ? PixelArt.HeroBig : PixelArt.Hero;
+        sprite.enabled = true;
     }
 
     void Die()
     {
         dead = true;
+        Time.timeScale = 1f;
         col.enabled = false;
         body.gravityScale = NormalGravity;
         body.linearVelocity = new Vector2(0f, 14f);
         sprite.flipY = true;
         sprite.sortingOrder = 20;
+        sprite.enabled = true;
         Game.Instance.PlayerDied();
     }
 }
