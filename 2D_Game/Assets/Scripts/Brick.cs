@@ -6,7 +6,7 @@ public class Brick : MonoBehaviour
 {
     public void Hit(bool canBreak)
     {
-        SquashEnemiesOnTop(transform.position);
+        DefeatEnemiesOnTop(transform.position);
         if (!canBreak)
         {
             StartCoroutine(Bump(transform));
@@ -30,12 +30,12 @@ public class Brick : MonoBehaviour
     }
 
     // Hitting a block from below defeats any enemy standing on it.
-    public static void SquashEnemiesOnTop(Vector2 blockPosition)
+    public static void DefeatEnemiesOnTop(Vector2 blockPosition)
     {
         foreach (var hit in Physics2D.OverlapBoxAll(blockPosition + Vector2.up * 0.6f, new Vector2(0.9f, 0.3f), 0f))
-            if (hit.TryGetComponent(out Enemy enemy))
+            if (hit.TryGetComponent(out Enemy enemy) && !enemy.IsDead)
             {
-                enemy.Squash();
+                enemy.Kill();
                 Game.Instance.AddScore(100);
             }
     }

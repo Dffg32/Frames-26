@@ -89,7 +89,17 @@ public static class PixelArt
         "....BBBBBBBB....",
         "....BBBBBBBB....");
 
-    static Sprite hero, heroWalk, heroBig, heroBigWalk, grass, dirt, stone, bonus, usedBonus, plank, coin, slime, slimeFlat, gem, cloud, berry, brickBit;
+    static readonly string[] HeroBigRows = Concat(Concat(HeroBigTop, Repeat(new[] { "....BBB..BBB...." }, 8)),
+        "...KKKK..KKKK...",
+        "..KKKKK..KKKKK..");
+
+    static readonly string[] HeroBigWalkRows = Concat(Concat(HeroBigTop,
+        Repeat(new[] { "...BBB....BBB..." }, 4)), Concat(Repeat(new[] { "..BBB......BBB.." }, 4),
+        "..KKK......KKK..",
+        ".KKKK......KKKK."));
+
+    static Sprite hero, heroWalk, heroBig, heroBigWalk, heroFire, heroFireWalk, grass, dirt, stone, bonus, usedBonus, plank, coin,
+        slime, slimeFlat, spiky, bat, gem, cloud, berry, pepper, fireball, brickBit;
     static Material material;
 
     // Hero sprites have their pivot at the feet, so growing or shrinking keeps them on the ground.
@@ -97,15 +107,77 @@ public static class PixelArt
 
     public static Sprite Hero => hero ? hero : hero = Make(Concat(HeroTop, "....KKK..KKK....", "...KKKK..KKKK..."), Feet);
     public static Sprite HeroWalk => heroWalk ? heroWalk : heroWalk = Make(Concat(HeroTop, "...KKK....KKK...", "..KKK......KKK.."), Feet);
+    public static Sprite HeroBig => heroBig ? heroBig : heroBig = Make(HeroBigRows, Feet);
+    public static Sprite HeroBigWalk => heroBigWalk ? heroBigWalk : heroBigWalk = Make(HeroBigWalkRows, Feet);
 
-    public static Sprite HeroBig => heroBig ? heroBig : heroBig = Make(Concat(Concat(HeroBigTop, Repeat(new[] { "....BBB..BBB...." }, 8)),
-        "...KKKK..KKKK...",
-        "..KKKKK..KKKKK.."), Feet);
+    // Fire hero: red clothes, white bandana, orange buttons.
+    public static Sprite HeroFire => heroFire ? heroFire : heroFire = Make(Recolor(HeroBigRows, "BRY", "RWO"), Feet);
+    public static Sprite HeroFireWalk => heroFireWalk ? heroFireWalk : heroFireWalk = Make(Recolor(HeroBigWalkRows, "BRY", "RWO"), Feet);
 
-    public static Sprite HeroBigWalk => heroBigWalk ? heroBigWalk : heroBigWalk = Make(Concat(Concat(HeroBigTop,
-        Repeat(new[] { "...BBB....BBB..." }, 4)), Concat(Repeat(new[] { "..BBB......BBB.." }, 4),
-        "..KKK......KKK..",
-        ".KKKK......KKKK.")), Feet);
+    // Fire power-up: an orange chili pepper.
+    public static Sprite Pepper => pepper ? pepper : pepper = Make(new[]
+    {
+        "",
+        ".........gg.....",
+        "........gG......",
+        ".......OOO......",
+        "......OOOOO.....",
+        ".....OOYOOOO....",
+        ".....OYOOOOO....",
+        "....OOYOOOOO....",
+        "....OOOOOOOO....",
+        "...OOOOOOOOR....",
+        "...OOOOOOOR.....",
+        "..OOOOOOOR......",
+        "..OOOOOOR.......",
+        ".OOOOOR.........",
+        ".OOR............",
+        "",
+    });
+
+    public static Sprite Fireball => fireball ? fireball : fireball = Make(new[]
+    {
+        "..OOOO..",
+        ".OYYYYO.",
+        "OYYWWYYO",
+        "OYWWWWYO",
+        "OYWWWWYO",
+        "OYYWWYYO",
+        ".OYYYYO.",
+        "..OOOO..",
+    });
+
+    // A hedgehog covered in spikes: it can't be stomped. Faces right.
+    public static Sprite Spiky => spiky ? spiky : spiky = Make(new[]
+    {
+        "", "", "", "", "",
+        ".....A.A.A......",
+        "...A.AAAAAA.A...",
+        "..AAaAAaAAaAA...",
+        ".AaAAaAAaAASSS..",
+        "AAAaAAaAAaSSSKS.",
+        ".AaAAaAAaASSSSSK",
+        "AAAAAAAAAASSSSS.",
+        ".aaaaaaaaaSSSS..",
+        "..aaaaaaaaaSS...",
+        "...KK....KK.....",
+        "..KKK...KKK.....",
+    });
+
+    // A bat that flies back and forth.
+    public static Sprite Bat => bat ? bat : bat = Make(new[]
+    {
+        "", "", "",
+        "......p..p......",
+        "......pppp......",
+        "KK...pWppWp...KK",
+        "KpKK.pKppKp.KKpK",
+        "KppppppppppppppK",
+        ".KppppppppppppK.",
+        "..KpppKppKpppK..",
+        "...KK.W..W.KK...",
+        "", "", "", "", "",
+    });
 
     // The grow power-up: a red berry with a leaf.
     public static Sprite Berry => berry ? berry : berry = Make(new[]
@@ -290,6 +362,18 @@ public static class PixelArt
         b.CopyTo(result, a.Length);
         return result;
     }
+
+    // Swaps colors: every char in `from` becomes the char at the same index in `to`.
+    static string[] Recolor(string[] rows, string from, string to) => System.Array.ConvertAll(rows, row =>
+    {
+        var chars = row.ToCharArray();
+        for (int i = 0; i < chars.Length; i++)
+        {
+            int index = from.IndexOf(chars[i]);
+            if (index >= 0) chars[i] = to[index];
+        }
+        return new string(chars);
+    });
 
     static string[] Repeat(string[] rows, int times)
     {

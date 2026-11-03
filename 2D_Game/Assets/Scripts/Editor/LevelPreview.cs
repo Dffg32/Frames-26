@@ -34,7 +34,9 @@ static class LevelPreview
                 {
                     '#' => y > 0 && x < map[y - 1].Length && map[y - 1][x] == '#' ? PixelArt.Dirt : PixelArt.Grass,
                     'B' => PixelArt.Stone,
-                    '!' or 'M' => PixelArt.Bonus,
+                    '!' or 'M' or 'Q' => PixelArt.Bonus,
+                    'S' => PixelArt.Spiky,
+                    'V' => PixelArt.Bat,
                     '=' => PixelArt.Plank,
                     'o' => PixelArt.Coin,
                     'E' => PixelArt.Slime,

@@ -5,22 +5,23 @@ using UnityEngine.InputSystem;
 // follows the player with the camera and draws the HUD.
 public class Game : MonoBehaviour
 {
-    // # ground   B stone (breakable when big)   ! bonus block (coin)   M bonus block (grow berry)
-    // = one-way plank   o coin   E enemy   P player start   F goal gem
+    // # ground   B stone (breakable when big)   = one-way plank   o coin
+    // ! bonus block (coin)   M bonus block (grow berry)   Q bonus block (fire pepper, or a berry if small)
+    // E slime   S spiky hedgehog   V bat   P player start   F goal gem
     public static readonly string[] Map =
     {
         "",
         "",
         "",
         "",
-        "....................!.....................................................oooo",
-        ".........................................................................======",
-        ".......................................................................................................................##",
-        "...........................................................ooooooo....................................................###",
-        "..............M...B!B!B...................................=========.......................BBBMBBB.........B!B........####",
+        "....................Q",
+        ".......................................................................oooo",
+        "......................................................................======...........................................##",
+        ".........................................V.................ooooooo....................................V...............###",
+        "..............M...B!B!B...................................=========.................V.....BBBMBBB.........BQB........####",
         ".......................................ooooo..##.....................ooooo.......................ooooo..............#####",
         "............................##................##......................................##...........................######",
-        "...P..................E.....##.....E..........##..E....E......E.................E.....##....E..E..............E...#######.....F",
+        "...P..................E.....##.....E..........##..S....E......E.................E.....##....S..E..............E...#######.....F",
         "########################################...###########################...#########################...#############################",
         "########################################...###########################...#########################...#############################",
     };
@@ -166,15 +167,27 @@ public class Game : MonoBehaviour
                     case '#': Tile(pos, IsSolid(x, y - 1) ? PixelArt.Dirt : PixelArt.Grass, "Ground"); break;
                     case 'B': SpawnBrick(pos); break;
                     case '=': Tile(pos, PixelArt.Plank, "Plank"); break;
-                    case '!': SpawnBonusBlock(pos, false); break;
-                    case 'M': SpawnBonusBlock(pos, true); break;
+                    case '!': SpawnBonusBlock(pos, BlockContents.Coin); break;
+                    case 'M': SpawnBonusBlock(pos, BlockContents.Berry); break;
+                    case 'Q': SpawnBonusBlock(pos, BlockContents.Pepper); break;
                     case 'o': SpawnCoin(pos); break;
-                    case 'E': SpawnEnemy(pos); break;
+                    case 'E': SpawnEnemy(pos, EnemyKind.Slime); break;
+                    case 'S': SpawnEnemy(pos, EnemyKind.Spiky); break;
+                    case 'V': SpawnEnemy(pos, EnemyKind.Bat); break;
                     case 'F': SpawnGoal(pos); break;
                     case 'P': spawn = pos; break;
                 }
             }
             AddRowColliders(row, rows - 1 - y);
+        }
+
+        // Invisible walls at both ends of the level, tall enough that nothing can jump over them.
+        foreach (float wallX in new[] { -1f, levelWidth })
+        {
+            var wall = level.gameObject.AddComponent<BoxCollider2D>();
+            wall.offset = new Vector2(wallX, rows / 2f + 10f);
+            wall.size = new Vector2(1f, rows + 40f);
+            wall.sharedMaterial = Slippery;
         }
 
         for (int x = 4; x < levelWidth; x += 11)
@@ -190,7 +203,7 @@ public class Game : MonoBehaviour
     }
 
     static bool IsSolid(int x, int y) =>
-        y >= 0 && y < Map.Length && x >= 0 && x < Map[y].Length && "#B!M".IndexOf(Map[y][x]) >= 0;
+        y >= 0 && y < Map.Length && x >= 0 && x < Map[y].Length && "#B!MQ".IndexOf(Map[y][x]) >= 0;
 
     // One collider per horizontal run of ground or planks, so the player doesn't snag on seams.
     // Stone and bonus blocks get their own collider because they can be hit one by one.
@@ -242,11 +255,11 @@ public class Game : MonoBehaviour
         go.AddComponent<Brick>();
     }
 
-    void SpawnBonusBlock(Vector2 pos, bool holdsPowerUp)
+    void SpawnBonusBlock(Vector2 pos, BlockContents contents)
     {
         var go = Tile(pos, PixelArt.Bonus, "BonusBlock");
         go.AddComponent<BoxCollider2D>().sharedMaterial = Slippery;
-        go.AddComponent<BonusBlock>().HoldsPowerUp = holdsPowerUp;
+        go.AddComponent<BonusBlock>().Contents = contents;
     }
 
     void SpawnCoin(Vector2 pos)
@@ -258,17 +271,23 @@ public class Game : MonoBehaviour
         go.AddComponent<Coin>();
     }
 
-    void SpawnEnemy(Vector2 pos)
+    void SpawnEnemy(Vector2 pos, EnemyKind kind)
     {
-        var go = Tile(pos, PixelArt.Slime, "Slime", 5);
+        var (sprite, size, offset) = kind switch
+        {
+            EnemyKind.Spiky => (PixelArt.Spiky, new Vector2(0.85f, 0.7f), new Vector2(0f, -0.15f)),
+            EnemyKind.Bat => (PixelArt.Bat, new Vector2(0.8f, 0.5f), new Vector2(0f, 0.06f)),
+            _ => (PixelArt.Slime, new Vector2(0.85f, 0.65f), new Vector2(0f, -0.17f)),
+        };
+        var go = Tile(pos, sprite, kind.ToString(), 5);
         var body = go.AddComponent<Rigidbody2D>();
-        body.gravityScale = 4f;
+        body.gravityScale = kind == EnemyKind.Bat ? 0f : 4f;
         body.freezeRotation = true;
         var box = go.AddComponent<BoxCollider2D>();
-        box.size = new Vector2(0.85f, 0.65f);
-        box.offset = new Vector2(0f, -0.17f);
+        box.size = size;
+        box.offset = offset;
         box.sharedMaterial = Slippery;
-        go.AddComponent<Enemy>();
+        go.AddComponent<Enemy>().Kind = kind;
     }
 
     void SpawnGoal(Vector2 pos)

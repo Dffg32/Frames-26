@@ -1,42 +1,52 @@
 using System.Collections;
 using UnityEngine;
 
-// Hit it from below to pop out a coin, or a grow berry if it holds one. Works once.
+public enum BlockContents { Coin, Berry, Pepper }
+
+// Hit it from below to get what it holds. Works once.
+// A pepper block gives a berry instead if the player is still small.
 public class BonusBlock : MonoBehaviour
 {
-    public bool HoldsPowerUp;
+    public BlockContents Contents;
 
     bool used;
 
-    public void Hit()
+    public void Hit(PlayerController player)
     {
         if (used) return;
         used = true;
         GetComponent<SpriteRenderer>().sprite = PixelArt.UsedBonus;
-        Brick.SquashEnemiesOnTop(transform.position);
+        Brick.DefeatEnemiesOnTop(transform.position);
         StartCoroutine(Brick.Bump(transform));
-        if (HoldsPowerUp) SpawnPowerUp();
-        else
+        switch (Contents)
         {
-            Game.Instance.AddCoin();
-            StartCoroutine(PopCoin());
+            case BlockContents.Coin:
+                Game.Instance.AddCoin();
+                StartCoroutine(PopCoin());
+                break;
+            case BlockContents.Berry:
+                SpawnPowerUp(false);
+                break;
+            case BlockContents.Pepper:
+                SpawnPowerUp(player.IsBig);
+                break;
         }
     }
 
-    void SpawnPowerUp()
+    void SpawnPowerUp(bool fire)
     {
-        var go = new GameObject("PowerUp");
+        var go = new GameObject(fire ? "FirePepper" : "Berry");
         go.transform.SetParent(transform.parent);
         go.transform.position = transform.position;
         // Drawn behind the block so it looks like it comes out of it.
-        PixelArt.AddRenderer(go, PixelArt.Berry, -1);
+        PixelArt.AddRenderer(go, fire ? PixelArt.Pepper : PixelArt.Berry, -1);
         var body = go.AddComponent<Rigidbody2D>();
         body.bodyType = RigidbodyType2D.Kinematic;
         body.interpolation = RigidbodyInterpolation2D.Interpolate;
         var box = go.AddComponent<BoxCollider2D>();
         box.size = new Vector2(0.8f, 0.8f);
         box.isTrigger = true;
-        go.AddComponent<PowerUp>();
+        go.AddComponent<PowerUp>().Fire = fire;
     }
 
     IEnumerator PopCoin()

@@ -1,13 +1,16 @@
 using System.Collections;
 using UnityEngine;
 
-// The grow berry. It rises out of its block, then slides along the ground,
-// bouncing off walls and falling off ledges. Touch it to become big.
+// A power-up that rises out of its block.
+// The grow berry then slides along the ground, bouncing off walls and falling off ledges.
+// The fire pepper stays where it appeared.
 public class PowerUp : MonoBehaviour
 {
     const float Speed = 3f;
     const float Gravity = 39f;
     const float RiseTime = 0.6f;
+
+    public bool Fire;
 
     Rigidbody2D body;
     Collider2D col;
@@ -35,17 +38,17 @@ public class PowerUp : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (rising) return;
+        if (rising || Fire) return;
         float dt = Time.fixedDeltaTime;
         var pos = body.position;
 
         float dx = direction * Speed * dt;
-        if (Blocked(Vector2.right * direction, Mathf.Abs(dx), out _)) direction = -direction;
+        if (Mover.Blocked(col, Vector2.right * direction, Mathf.Abs(dx), out _)) direction = -direction;
         else pos.x += dx;
 
         fallSpeed += Gravity * dt;
         float dy = fallSpeed * dt;
-        if (Blocked(Vector2.down, dy, out float distance))
+        if (Mover.Blocked(col, Vector2.down, dy, out float distance))
         {
             pos.y -= distance;
             fallSpeed = 0f;
@@ -56,34 +59,10 @@ public class PowerUp : MonoBehaviour
         if (pos.y < -3f) Destroy(gameObject);
     }
 
-    // Casts the berry's box and reports the distance to the nearest solid tile in that direction.
-    // The box is trimmed across the direction of travel, so the floor it rests on never counts
-    // as a wall and a wall it slides along never counts as floor.
-    bool Blocked(Vector2 direction, float distance, out float hitDistance)
-    {
-        const float Skin = 0.02f;
-        var b = col.bounds;
-        bool horizontal = direction.y == 0f;
-        var size = horizontal
-            ? new Vector2(b.size.x - Skin * 2f, b.size.y * 0.6f)
-            : new Vector2(b.size.x * 0.6f, b.size.y - Skin * 2f);
-
-        hitDistance = distance;
-        bool blocked = false;
-        foreach (var hit in Physics2D.BoxCastAll(b.center, size, 0f, direction, distance + Skin))
-        {
-            var other = hit.collider;
-            if (other == col || other.isTrigger || other.GetComponent<PlayerController>() || other.GetComponent<Enemy>()) continue;
-            blocked = true;
-            hitDistance = Mathf.Min(hitDistance, Mathf.Max(0f, hit.distance - Skin));
-        }
-        return blocked;
-    }
-
     public void Collect(PlayerController player)
     {
         if (rising) return;
-        player.PowerUp();
+        player.PowerUp(Fire);
         Destroy(gameObject);
     }
 }
