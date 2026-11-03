@@ -99,7 +99,7 @@ public static class PixelArt
         ".KKKK......KKKK."));
 
     static Sprite hero, heroWalk, heroBig, heroBigWalk, heroFire, heroFireWalk, grass, dirt, stone, bonus, usedBonus, plank, coin,
-        slime, slimeFlat, spiky, bat, gem, cloud, berry, pepper, fireball, brickBit;
+        slime, slimeFlat, spiky, bat, gem, cloud, berry, pepper, star, fireball, brickBit;
     static Material material;
 
     // Hero sprites have their pivot at the feet, so growing or shrinking keeps them on the ground.
@@ -135,7 +135,28 @@ public static class PixelArt
         "",
     });
 
-    public static Sprite Fireball => fireball ? fireball : fireball = Make(new[]
+    // Invincibility power-up: a smiling gold star.
+    public static Sprite Star => star ? star : star = Make(new[]
+    {
+        "",
+        ".......OO.......",
+        "......OYYO......",
+        "......OYYO......",
+        ".....OYWYYO.....",
+        "OOOOOYWYYYYOOOOO",
+        ".OYYYWYYYYYYYYO.",
+        "..OYYYKYYKYYYO..",
+        "...OYYKYYKYYO...",
+        "....OYYYYYYO....",
+        "....OYYYYYYO....",
+        "...OYYYOOYYYO...",
+        "...OYYO..OYYO...",
+        "..OYYO....OYYO..",
+        "..OOO......OOO..",
+        "",
+    });
+
+    public static Sprite Fireball =>fireball ? fireball : fireball = Make(new[]
     {
         "..OOOO..",
         ".OYYYYO.",

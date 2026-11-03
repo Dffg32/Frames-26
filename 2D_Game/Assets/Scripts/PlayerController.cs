@@ -8,6 +8,7 @@ public enum PowerLevel { Small, Big, Fire }
 // Gamepad works too (A to jump, X to throw).
 // A berry makes the player big: big players can smash stone blocks and survive one hit
 // (they shrink back and blink for a moment instead of dying). A pepper adds fireballs.
+// A star makes the player invincible for a while: touching enemies defeats them.
 public class PlayerController : MonoBehaviour
 {
     const float RunSpeed = 7f;
@@ -20,17 +21,20 @@ public class PlayerController : MonoBehaviour
     const float ShortJumpGravity = 9f;
     const float InvincibleTime = 2f;
     const int MaxFireballs = 2;
+    const float StarTime = 10f;
     // Draws the player (and its collider) a bit smaller than a tile.
     const float Scale = 0.8f;
 
     Rigidbody2D body;
     CapsuleCollider2D col;
     SpriteRenderer sprite;
-    float lastGroundedTime = -1f, lastJumpPressTime = -1f, walkTimer, invincibleUntil;
+    float lastGroundedTime = -1f, lastJumpPressTime = -1f, walkTimer, invincibleUntil, starUntil = -1f;
     bool dead, frozen, transforming;
     PowerLevel level;
+    Coroutine starGlow;
 
     public bool IsBig => level != PowerLevel.Small;
+    public bool HasStar => Time.time < starUntil;
 
     void Awake()
     {
@@ -131,7 +135,12 @@ public class PlayerController : MonoBehaviour
         if (other.TryGetComponent(out Enemy enemy))
         {
             if (enemy.IsDead) return;
-            if (mine.min.y > other.bounds.center.y && enemy.CanBeStomped)
+            if (HasStar)
+            {
+                enemy.Kill();
+                Game.Instance.AddScore(200);
+            }
+            else if (mine.min.y > other.bounds.center.y && enemy.CanBeStomped)
             {
                 enemy.Stomp();
                 body.linearVelocity = new Vector2(body.linearVelocity.x, StompBounce);
@@ -154,16 +163,52 @@ public class PlayerController : MonoBehaviour
         else if (other.TryGetComponent(out Goal _)) Game.Instance.Win();
     }
 
-    public void PowerUp(bool fire)
+    public void PowerUp(PowerUpKind kind)
     {
         Game.Instance.AddScore(1000);
-        var target = fire ? PowerLevel.Fire : PowerLevel.Big;
+        if (kind == PowerUpKind.Star)
+        {
+            starUntil = Time.time + StarTime;
+            if (starGlow != null) StopCoroutine(starGlow);
+            starGlow = StartCoroutine(StarGlow());
+            return;
+        }
+        var target = kind == PowerUpKind.Pepper ? PowerLevel.Fire : PowerLevel.Big;
         if (target > level && !transforming) StartCoroutine(ChangeLevel(target));
+    }
+
+    // Cycles through rainbow colors while the star lasts, faster near the end as a warning.
+    IEnumerator StarGlow()
+    {
+        while (HasStar && !dead)
+        {
+            float speed = starUntil - Time.time < 2f ? 8f : 3f;
+            sprite.color = Color.HSVToRGB(Time.time * speed % 1f, 0.6f, 1f);
+            yield return null;
+        }
+        sprite.color = Color.white;
+        starGlow = null;
+    }
+
+    // Used by hidden blocks: true when the player is jumping up into the block from underneath.
+    public bool IsJumpingUnder(Bounds block)
+    {
+        var b = col.bounds;
+        float overlap = Mathf.Min(b.max.x, block.max.x) - Mathf.Max(b.min.x, block.min.x);
+        return !dead && body.linearVelocity.y > 0f && b.min.y < block.min.y - 0.2f && overlap > 0.2f;
+    }
+
+    // Stops the jump right below a block that just appeared over the player's head.
+    public void BumpHead(float ceiling)
+    {
+        float overlap = col.bounds.max.y - ceiling;
+        if (overlap > 0f) body.position += Vector2.down * overlap;
+        body.linearVelocity = new Vector2(body.linearVelocity.x, 0f);
     }
 
     void Hurt()
     {
-        if (transforming || Time.time < invincibleUntil) return;
+        if (transforming || HasStar || Time.time < invincibleUntil) return;
         if (level == PowerLevel.Small)
         {
             Die();
@@ -234,6 +279,7 @@ public class PlayerController : MonoBehaviour
         sprite.flipY = true;
         sprite.sortingOrder = 20;
         sprite.enabled = true;
+        sprite.color = Color.white;
         Game.Instance.PlayerDied();
     }
 }

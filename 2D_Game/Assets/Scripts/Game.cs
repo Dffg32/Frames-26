@@ -7,6 +7,7 @@ public class Game : MonoBehaviour
 {
     // # ground   B stone (breakable when big)   = one-way plank   o coin
     // ! bonus block (coin)   M bonus block (grow berry)   Q bonus block (fire pepper, or a berry if small)
+    // H hidden block (star): invisible until hit from below
     // E slime   S spiky hedgehog   V bat   P player start   F goal gem
     public static readonly string[] Map =
     {
@@ -18,7 +19,7 @@ public class Game : MonoBehaviour
         ".......................................................................oooo",
         "......................................................................======...........................................##",
         ".........................................V.................ooooooo....................................V...............###",
-        "..............M...B!B!B...................................=========.................V.....BBBMBBB.........BQB........####",
+        "..............M...B!B!B..........H........................=========.................V.....BBBMBBB.........BQB........####",
         ".......................................ooooo..##.....................ooooo.......................ooooo..............#####",
         "............................##................##......................................##...........................######",
         "...P..................E.....##.....E..........##..S....E......E.................E.....##....S..E..............E...#######.....F",
@@ -170,6 +171,7 @@ public class Game : MonoBehaviour
                     case '!': SpawnBonusBlock(pos, BlockContents.Coin); break;
                     case 'M': SpawnBonusBlock(pos, BlockContents.Berry); break;
                     case 'Q': SpawnBonusBlock(pos, BlockContents.Pepper); break;
+                    case 'H': SpawnBonusBlock(pos, BlockContents.Star, hidden: true); break;
                     case 'o': SpawnCoin(pos); break;
                     case 'E': SpawnEnemy(pos, EnemyKind.Slime); break;
                     case 'S': SpawnEnemy(pos, EnemyKind.Spiky); break;
@@ -255,11 +257,17 @@ public class Game : MonoBehaviour
         go.AddComponent<Brick>();
     }
 
-    void SpawnBonusBlock(Vector2 pos, BlockContents contents)
+    void SpawnBonusBlock(Vector2 pos, BlockContents contents, bool hidden = false)
     {
-        var go = Tile(pos, PixelArt.Bonus, "BonusBlock");
-        go.AddComponent<BoxCollider2D>().sharedMaterial = Slippery;
-        go.AddComponent<BonusBlock>().Contents = contents;
+        var go = Tile(pos, PixelArt.Bonus, hidden ? "HiddenBlock" : "BonusBlock");
+        var box = go.AddComponent<BoxCollider2D>();
+        box.sharedMaterial = Slippery;
+        // A hidden block is an invisible trigger until the player bumps it from below.
+        box.isTrigger = hidden;
+        go.GetComponent<SpriteRenderer>().enabled = !hidden;
+        var block = go.AddComponent<BonusBlock>();
+        block.Contents = contents;
+        block.Hidden = hidden;
     }
 
     void SpawnCoin(Vector2 pos)

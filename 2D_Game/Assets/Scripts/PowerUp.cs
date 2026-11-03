@@ -1,20 +1,26 @@
 using System.Collections;
 using UnityEngine;
 
-// A power-up that rises out of its block.
-// The grow berry then slides along the ground, bouncing off walls and falling off ledges.
-// The fire pepper stays where it appeared.
+public enum PowerUpKind
+{
+    Berry,  // makes the player big; slides along the ground
+    Pepper, // gives fireballs; stays where it appeared
+    Star,   // a few seconds of invincibility; bounces around
+}
+
+// A power-up that rises out of its block, then moves according to its kind,
+// turning around at walls and falling off ledges.
 public class PowerUp : MonoBehaviour
 {
-    const float Speed = 3f;
     const float Gravity = 39f;
     const float RiseTime = 0.6f;
+    const float StarBounce = 13f;
 
-    public bool Fire;
+    public PowerUpKind Kind;
 
     Rigidbody2D body;
     Collider2D col;
-    float direction = 1f, fallSpeed;
+    float direction = 1f, verticalSpeed;
     bool rising = true;
 
     void Awake()
@@ -38,22 +44,24 @@ public class PowerUp : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (rising || Fire) return;
+        if (rising || Kind == PowerUpKind.Pepper) return;
         float dt = Time.fixedDeltaTime;
         var pos = body.position;
 
-        float dx = direction * Speed * dt;
+        float dx = direction * (Kind == PowerUpKind.Star ? 4f : 3f) * dt;
         if (Mover.Blocked(col, Vector2.right * direction, Mathf.Abs(dx), out _)) direction = -direction;
         else pos.x += dx;
 
-        fallSpeed += Gravity * dt;
-        float dy = fallSpeed * dt;
-        if (Mover.Blocked(col, Vector2.down, dy, out float distance))
+        verticalSpeed -= Gravity * dt;
+        float dy = verticalSpeed * dt;
+        if (dy < 0f && Mover.Blocked(col, Vector2.down, -dy, out float distance))
         {
             pos.y -= distance;
-            fallSpeed = 0f;
+            // The star keeps bouncing; the berry just lands.
+            verticalSpeed = Kind == PowerUpKind.Star ? StarBounce : 0f;
         }
-        else pos.y -= dy;
+        else if (dy > 0f && Mover.Blocked(col, Vector2.up, dy, out _)) verticalSpeed = 0f;
+        else pos.y += dy;
 
         body.MovePosition(pos);
         if (pos.y < -3f) Destroy(gameObject);
@@ -62,7 +70,7 @@ public class PowerUp : MonoBehaviour
     public void Collect(PlayerController player)
     {
         if (rising) return;
-        player.PowerUp(Fire);
+        player.PowerUp(Kind);
         Destroy(gameObject);
     }
 }
