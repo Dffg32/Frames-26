@@ -27,14 +27,29 @@ public class Game : MonoBehaviour
         "########################################...###########################...#########################...#############################",
     };
 
-    enum State { Playing, Dead, Won, GameOver }
+    enum State { Menu, Playing, Dead, Won, GameOver }
+    enum MenuPage { Main, Save }
+
+    static readonly string[] MainOptions = { "JUGAR", "GUARDADO" };
+    static readonly string[] SaveOptions = { "GUARDAR PARTIDA", "CARGAR PARTIDA", "VOLVER" };
+    static readonly Color Gold = new(1f, 0.82f, 0.16f);
+    static readonly Color Good = new(0.6f, 1f, 0.6f);
+    static readonly Color Bad = new(1f, 0.6f, 0.6f);
 
     public static Game Instance { get; private set; }
     public static PhysicsMaterial2D Slippery { get; private set; }
 
-    int score, coins, lives = 3;
+    // Only one level exists for now; currentLevel is kept (and saved) so more can be added later.
+    int currentLevel = 1, score, coins, lives = 3;
     State state;
     float deathTimer;
+    // True while there's a game the player left with ESC that can still be saved.
+    bool gameInProgress;
+    MenuPage menuPage;
+    int menuIndex;
+    string menuNotice, savedGameInfo;
+    Color menuNoticeColor;
+    float menuNoticeUntil;
     int levelWidth;
     Transform level;
     PlayerController player;
@@ -62,7 +77,98 @@ public class Game : MonoBehaviour
         cam.clearFlags = CameraClearFlags.SolidColor;
         cam.backgroundColor = new Color(0.42f, 0.68f, 1f);
 
+        ShowMenu();
+    }
+
+    // The main menu shows over a frozen copy of the level.
+    void ShowMenu()
+    {
         BuildLevel();
+        state = State.Menu;
+        player.Freeze();
+        OpenMenuPage(MenuPage.Main, 0);
+    }
+
+    void StartGame()
+    {
+        currentLevel = 1;
+        score = coins = 0;
+        lives = 3;
+        gameInProgress = true;
+        BuildLevel();
+    }
+
+    string[] MenuOptions => menuPage == MenuPage.Main ? MainOptions : SaveOptions;
+
+    void OpenMenuPage(MenuPage page, int selected)
+    {
+        menuPage = page;
+        menuIndex = selected;
+        menuNotice = null;
+        if (page == MenuPage.Save) RefreshSavedGameInfo();
+    }
+
+    void RefreshSavedGameInfo()
+    {
+        var data = SaveSystem.Load();
+        savedGameInfo = data == null
+            ? "No hay ninguna partida guardada"
+            : $"Partida guardada:  NIVEL {data.nivel} · {data.puntos} PUNTOS · {data.monedas} MONEDAS · {data.vidas} VIDAS";
+    }
+
+    void ChooseMenuOption(int index)
+    {
+        menuIndex = index;
+        if (menuPage == MenuPage.Main)
+        {
+            if (index == 0) StartGame();
+            else OpenMenuPage(MenuPage.Save, 0);
+            return;
+        }
+
+        switch (index)
+        {
+            case 0: SaveGame(); break;
+            case 1: LoadGame(); break;
+            default: OpenMenuPage(MenuPage.Main, 1); break;
+        }
+    }
+
+    void SaveGame()
+    {
+        if (!gameInProgress)
+        {
+            ShowNotice("No hay ninguna partida en curso. Pulsa ESC durante la partida para venir aquí.", Bad);
+            return;
+        }
+        var data = new SaveData { nivel = currentLevel, puntos = score, monedas = coins, vidas = lives };
+        if (SaveSystem.Save(data)) ShowNotice("Partida guardada", Good);
+        else ShowNotice("No se pudo guardar la partida", Bad);
+        RefreshSavedGameInfo();
+    }
+
+    // Starts the saved level from the beginning with the saved points, coins and lives.
+    void LoadGame()
+    {
+        var data = SaveSystem.Load();
+        if (data == null)
+        {
+            ShowNotice("No hay ninguna partida guardada", Bad);
+            return;
+        }
+        currentLevel = data.nivel;
+        score = data.puntos;
+        coins = data.monedas;
+        lives = Mathf.Max(1, data.vidas);
+        gameInProgress = true;
+        BuildLevel();
+    }
+
+    void ShowNotice(string text, Color color)
+    {
+        menuNotice = text;
+        menuNoticeColor = color;
+        menuNoticeUntil = Time.unscaledTime + 3f;
     }
 
     public void AddCoin()
@@ -91,24 +197,42 @@ public class Game : MonoBehaviour
 
     void Update()
     {
+        var kb = Keyboard.current;
+        if (state == State.Menu)
+        {
+            if (kb == null) return;
+            if (kb.upArrowKey.wasPressedThisFrame || kb.wKey.wasPressedThisFrame)
+                menuIndex = (menuIndex + MenuOptions.Length - 1) % MenuOptions.Length;
+            if (kb.downArrowKey.wasPressedThisFrame || kb.sKey.wasPressedThisFrame)
+                menuIndex = (menuIndex + 1) % MenuOptions.Length;
+            if (kb.enterKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame) ChooseMenuOption(menuIndex);
+            else if (kb.escapeKey.wasPressedThisFrame && menuPage == MenuPage.Save) OpenMenuPage(MenuPage.Main, 1);
+            return;
+        }
+
+        if (kb != null && kb.escapeKey.wasPressedThisFrame)
+        {
+            Time.timeScale = 1f;
+            ShowMenu();
+            return;
+        }
+
         if (state == State.Dead)
         {
             deathTimer -= Time.deltaTime;
             if (deathTimer <= 0f)
             {
                 if (lives > 0) BuildLevel();
-                else state = State.GameOver;
+                else
+                {
+                    state = State.GameOver;
+                    gameInProgress = false;
+                }
             }
         }
         else if (state == State.Won || state == State.GameOver)
         {
-            var kb = Keyboard.current;
-            if (kb != null && (kb.enterKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame))
-            {
-                score = coins = 0;
-                lives = 3;
-                BuildLevel();
-            }
+            if (kb != null && (kb.enterKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame)) StartGame();
         }
     }
 
@@ -123,12 +247,17 @@ public class Game : MonoBehaviour
     void OnGUI()
     {
         var style = new GUIStyle(GUI.skin.label) { fontSize = Mathf.Max(18, Screen.height / 25), fontStyle = FontStyle.Bold };
-        Shadowed(new Rect(20, 10, 600, 60), $"PUNTOS {score:000000}    MONEDAS {coins:00}    VIDAS {lives}", style);
+        if (state == State.Menu)
+        {
+            DrawMenu(style);
+            return;
+        }
+        Shadowed(new Rect(20, 10, 900, 60), $"NIVEL {currentLevel}    PUNTOS {score:000000}    MONEDAS {coins:00}    VIDAS {lives}", style);
 
         string message = state switch
         {
-            State.Won => "¡NIVEL COMPLETADO!\nPulsa ENTER para jugar otra vez",
-            State.GameOver => "GAME OVER\nPulsa ENTER para reintentar",
+            State.Won => "¡NIVEL COMPLETADO!\nENTER: jugar otra vez    ESC: menú",
+            State.GameOver => "GAME OVER\nENTER: reintentar    ESC: menú",
             _ => null,
         };
         if (message == null) return;
@@ -136,14 +265,56 @@ public class Game : MonoBehaviour
         Shadowed(new Rect(0, 0, Screen.width, Screen.height), message, center);
     }
 
-    static void Shadowed(Rect rect, string text, GUIStyle style)
+    // Arrows / W-S to choose, ENTER or SPACE to confirm. Options can also be clicked.
+    void DrawMenu(GUIStyle baseStyle)
     {
-        var color = style.normal.textColor;
+        GUI.color = new Color(0f, 0f, 0f, 0.45f);
+        GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+        GUI.color = Color.white;
+
+        var title = new GUIStyle(baseStyle) { alignment = TextAnchor.MiddleCenter, fontSize = baseStyle.fontSize * 3 };
+        string heading = menuPage == MenuPage.Main ? "JUEGARDO" : "GUARDADO";
+        Shadowed(new Rect(0, Screen.height * 0.12f, Screen.width, Screen.height * 0.2f), heading, title, Gold);
+
+        var small = new GUIStyle(baseStyle) { alignment = TextAnchor.MiddleCenter, fontSize = baseStyle.fontSize * 3 / 4 };
+        if (menuPage == MenuPage.Save)
+            Shadowed(new Rect(0, Screen.height * 0.32f, Screen.width, baseStyle.fontSize * 2f), savedGameInfo, small);
+
+        var option = new GUIStyle(baseStyle) { alignment = TextAnchor.MiddleCenter, fontSize = baseStyle.fontSize * 3 / 2 };
+        var options = MenuOptions;
+        float height = option.fontSize * 2f;
+        float top = Screen.height * 0.42f;
+        for (int i = 0; i < options.Length; i++)
+        {
+            var rect = new Rect(0, top + i * height * 1.2f, Screen.width, height);
+            bool selected = i == menuIndex;
+            if (rect.Contains(Event.current.mousePosition)) menuIndex = i;
+            string label = selected ? $"> {options[i]} <" : options[i];
+            Shadowed(rect, label, option, selected ? Gold : Color.white);
+            if (GUI.Button(rect, GUIContent.none, GUIStyle.none)) ChooseMenuOption(i);
+        }
+
+        if (menuNotice != null && Time.unscaledTime < menuNoticeUntil)
+        {
+            var notice = new GUIStyle(baseStyle) { alignment = TextAnchor.MiddleCenter };
+            Shadowed(new Rect(0, top + options.Length * height * 1.2f + 10, Screen.width, height), menuNotice, notice, menuNoticeColor);
+        }
+
+        var hint = new GUIStyle(baseStyle) { alignment = TextAnchor.LowerCenter, fontSize = baseStyle.fontSize * 2 / 3 };
+        string help = menuPage == MenuPage.Main ? "Flechas para elegir · ENTER para aceptar" : "Flechas para elegir · ENTER para aceptar · ESC para volver";
+        Shadowed(new Rect(0, 0, Screen.width, Screen.height - 20), help, hint);
+    }
+
+    static void Shadowed(Rect rect, string text, GUIStyle style) => Shadowed(rect, text, style, Color.white);
+
+    static void Shadowed(Rect rect, string text, GUIStyle style, Color color)
+    {
+        var original = style.normal.textColor;
         style.normal.textColor = Color.black;
         GUI.Label(new Rect(rect.x + 2, rect.y + 2, rect.width, rect.height), text, style);
-        style.normal.textColor = Color.white;
-        GUI.Label(rect, text, style);
         style.normal.textColor = color;
+        GUI.Label(rect, text, style);
+        style.normal.textColor = original;
     }
 
     void BuildLevel()
