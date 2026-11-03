@@ -16,6 +16,8 @@ public class PlayerController : MonoBehaviour
     const float NormalGravity = 4f;
     const float ShortJumpGravity = 9f;
     const float InvincibleTime = 2f;
+    // Draws the player (and its collider) a bit smaller than a tile.
+    const float Scale = 0.8f;
 
     Rigidbody2D body;
     CapsuleCollider2D col;
@@ -28,6 +30,7 @@ public class PlayerController : MonoBehaviour
         body = GetComponent<Rigidbody2D>();
         col = GetComponent<CapsuleCollider2D>();
         sprite = GetComponent<SpriteRenderer>();
+        transform.localScale = Vector3.one * Scale;
         SetBig(false);
     }
 

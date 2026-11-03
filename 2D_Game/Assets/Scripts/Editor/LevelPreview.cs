@@ -47,6 +47,7 @@ static class LevelPreview
                 tile.transform.SetParent(root.transform);
                 // The hero's sprite is anchored at its feet, so it goes half a tile lower.
                 tile.transform.position = new Vector2(x, map.Length - 1 - y - (map[y][x] == 'P' ? 0.5f : 0f));
+                if (map[y][x] == 'P') tile.transform.localScale = Vector3.one * 0.8f;
                 PixelArt.AddRenderer(tile, sprite);
             }
     }
