@@ -1,0 +1,9 @@
+bin/
+obj/
+.vs/
+*.user
+
+# Local database (it's created when the server starts)
+*.db
+*.db-shm
+*.db-wal
