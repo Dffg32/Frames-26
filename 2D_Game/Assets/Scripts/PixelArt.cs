@@ -26,6 +26,23 @@ public static class PixelArt
         ['p'] = new Color32(100, 40, 140, 255),  // dark slime
         ['C'] = new Color32(90, 230, 240, 255),  // gem
         ['c'] = new Color32(30, 130, 170, 255),  // dark gem
+        ['N'] = new Color32(240, 212, 135, 255), // sand
+        ['n'] = new Color32(212, 170, 95, 255),  // dark sand
+        ['t'] = new Color32(170, 120, 60, 255),  // sandstone
+        ['U'] = new Color32(85, 95, 125, 255),   // cave rock
+        ['u'] = new Color32(55, 60, 85, 255),    // dark cave rock
+        ['V'] = new Color32(120, 105, 130, 255), // castle brick
+        ['v'] = new Color32(85, 70, 95, 255),    // dark castle brick
+        ['k'] = new Color32(45, 40, 55, 255),    // mortar
+    };
+
+    // How each world recolors the meadow's ground: grass, dark grass, dirt, dark dirt.
+    static readonly Dictionary<Theme, string> GroundColors = new()
+    {
+        [Theme.Meadow] = "GgDd",
+        [Theme.Desert] = "Nnnt",
+        [Theme.Cave] = "gUUu",
+        [Theme.Castle] = "Vvvk",
     };
 
     static readonly string[] HeroTop =
@@ -98,8 +115,9 @@ public static class PixelArt
         "..KKK......KKK..",
         ".KKKK......KKKK."));
 
-    static Sprite hero, heroWalk, heroBig, heroBigWalk, heroFire, heroFireWalk, grass, dirt, stone, bonus, usedBonus, plank, coin,
-        slime, slimeFlat, spiky, bat, gem, cloud, berry, pepper, star, fireball, brickBit;
+    static Sprite hero, heroWalk, heroBig, heroBigWalk, heroFire, heroFireWalk, lava, lavaDeep, stone, bonus, usedBonus, plank, coin,
+        slime, slimeFlat, spiky, bat, gem, cloud, berry, pepper, star, fireball, brickBit,
+        frog, frogJump, cactus, seed, ghost, ember, shockwave, boss;
     static Material material;
 
     // Hero sprites have their pivot at the feet, so growing or shrinking keeps them on the ground.
@@ -224,15 +242,36 @@ public static class PixelArt
     // A piece of a broken stone block.
     public static Sprite BrickBit => brickBit ? brickBit : brickBit = Make(new[] { "aAAa", "ALAa", "AAAa", "aaaa" });
 
-    public static Sprite Grass => grass ? grass : grass = Make(Concat(new[]
+    static readonly string[] GrassRows = Concat(new[]
     {
         "GGGGGGGGGGGGGGGG",
         "GGgGGGGGGgGGGGGG",
         "gGggGGgGggGGgGgg",
         "DgDDgDDDDgDDDgDD",
-    }, Repeat(DirtRows, 3)));
+    }, Repeat(DirtRows, 3));
 
-    public static Sprite Dirt => dirt ? dirt : dirt = Make(Repeat(DirtRows, 4));
+    static readonly Dictionary<(Theme, bool), Sprite> ground = new();
+
+    // A ground tile in the colors of the given world: the top one (grass, sand...) or the fill below it.
+    public static Sprite Ground(Theme theme, bool top)
+    {
+        if (ground.TryGetValue((theme, top), out var sprite) && sprite) return sprite;
+        return ground[(theme, top)] = Make(Recolor(top ? GrassRows : Repeat(DirtRows, 4), "GgDd", GroundColors[theme]));
+    }
+
+
+    // Lava: a bubbling surface and the glowing fill under it.
+    public static Sprite Lava => lava ? lava : lava = Make(Concat(new[]
+    {
+        "", "", "",
+        "..YY......YY....",
+        ".YOOY....YOOY...",
+        "YOOOOYYYYOOOOYYY",
+        "OOROOOOOOOOROOOO",
+        "OOOOOOROOOOOOOOR",
+    }, Repeat(new[] { "ROOORRRROOORRRRO", "RRRRROOORRRRROOR" }, 4)));
+
+    public static Sprite LavaDeep => lavaDeep ? lavaDeep : lavaDeep = Make(Repeat(new[] { "RRRORRRRRRRORRRR", "RRRRRRORRRRRRROR" }, 8));
 
     public static Sprite Stone => stone ? stone : stone = Make(new[]
     {
@@ -338,6 +377,140 @@ public static class PixelArt
         "", "", "", "", "",
     });
 
+    // A frog that hops toward the player. Faces left.
+    static readonly string[] FrogHead =
+    {
+        "...WW....WW.....",
+        "..WKKW..WKKW....",
+        "..WKWW..WKWW....",
+        ".GGGGGGGGGGGG...",
+        "GGGGGGGGGGGGGG..",
+        "KKKKKGGGGGGGGGG.",
+        ".GYYYYYYYGGGGGG.",
+        ".GYYYYYYYYGGGgG.",
+        "..GgGGGGGGGgGg..",
+    };
+
+    public static Sprite Frog => frog ? frog : frog = Make(Concat(Concat(Repeat(new[] { "" }, 5), FrogHead),
+        ".gg.gg...gg.gg..",
+        ""));
+
+    public static Sprite FrogJump => frogJump ? frogJump : frogJump = Make(Concat(Concat(Repeat(new[] { "" }, 3), FrogHead),
+        "...g.g....g..g..",
+        "..gg.gg...gg.gg.",
+        "..g...g....g..g.",
+        ""));
+
+    // A cactus in a pot that spits seeds at the player.
+    public static Sprite Cactus => cactus ? cactus : cactus = Make(new[]
+    {
+        "",
+        "......G..G......",
+        ".....GGGGGG.....",
+        "....GGgGGgGG....",
+        "..G.GKWGGKWG.G..",
+        ".GG.GKKGGKKG.GG.",
+        ".GG.GGGGGGGG.GG.",
+        ".GGGGGKKKKGGGGG.",
+        "..GGGKMMMMKGGG..",
+        "....GGKKKKGG....",
+        "....GgGGGGgG....",
+        "....GGGgGGGG....",
+        "....GgGGGgGG....",
+        "...DDDDDDDDDD...",
+        "...dDDDDDDDDd...",
+        "....dddddddd....",
+    });
+
+    public static Sprite Seed => seed ? seed : seed = Make(new[] { "..gg..", ".gGGg.", "gGGWGg", "gGGGGg", ".gGGg.", "..gg.." });
+
+    // A ghost that floats through walls toward the player. Faces left.
+    public static Sprite Ghost => ghost ? ghost : ghost = Make(new[]
+    {
+        "", "",
+        ".....WWWWWW.....",
+        "...WWWWWWWWWW...",
+        "..WWWWWWWWWWWW..",
+        "..WKKWWWWKKWWW..",
+        ".WWKKWWWWKKWWWW.",
+        ".WWWWWWWWWWWWWW.",
+        ".WWWMMMMWWWWWWW.",
+        ".WWWMMMMWWWWWWW.",
+        ".WWWWWWWWWWWWWW.",
+        ".LWWWWWWWWWWWWL.",
+        ".LLWWWLWWLWWWLL.",
+        ".L.LLL.LL.LLL.L.",
+        "", "",
+    });
+
+    // A living spark that leaps out of the lava.
+    public static Sprite Ember => ember ? ember : ember = Make(new[]
+    {
+        "",
+        ".......Y........",
+        "......YOY.......",
+        ".....YOOOY......",
+        "....YOOYOOY.....",
+        "...YOOYWYOOY....",
+        "...OOYWWWYOO....",
+        "..OOYWWWWWYOO...",
+        "..OOYKWWWKYOO...",
+        "..OOYKWWWKYOO...",
+        "..OOOYWWWYOOO...",
+        "...OOOYYYOOO....",
+        "....ROOOOOR.....",
+        ".....RRRRR......",
+        "", "",
+    });
+
+    // The wave of fire the boss sends along the floor when it lands.
+    public static Sprite Shockwave => shockwave ? shockwave : shockwave = Make(Concat(Repeat(new[] { "" }, 8),
+        "......Y.........",
+        ".....YOY....Y...",
+        "..Y..YOOY..YOY..",
+        ".YOY.YOOOYYOOY..",
+        "YOOOYOOOOOOOOOY.",
+        "OOROOOOROOOOROOO",
+        "ORRROOORRRORRROO",
+        "RRRRRRRRRRRRRRRR"));
+
+    // The final boss: a crowned stone golem with a molten core (32x32, pivot at the feet).
+    public static Sprite Boss => boss ? boss : boss = Make(Mirror(new[]
+    {
+        "................",
+        "........Y.....Y.",
+        "........YY...YYY",
+        "........YYYYYYYY",
+        "........YOYYYYRY",
+        "......KKKKKKKKKK",
+        ".....KLLLLLLLLLL",
+        "....KLAAAAAAAAAA",
+        "....KAAKKKKAAAAA",
+        "....KAKOYYKAAAAA",
+        "....KAAKKKKAAAAA",
+        "....KaAAAAAAAAAA",
+        "....KaAKKKKKKKKK",
+        "....KaAKRORORORO",
+        ".....KaKKKKKKKKK",
+        "..KKKKKaaaaaaaaa",
+        ".KAAAAKKKKKKKKKK",
+        "KALAAKAAAAAAAAAA",
+        "KAAAAKAAAAKKKKKK",
+        "KAAAAKAAAKOOOOOO",
+        "KAAAAKAAAKOYYYYY",
+        "KAAAAKAAAKOYYWWW",
+        "KaAAAKAAAKOYYYYY",
+        "KaAAAKAAAKOOOOOO",
+        "KKKKKKaAAAKKKKKK",
+        ".KaaKKaAAAAAAAAA",
+        "..KK.Kaaaaaaaaaa",
+        ".....KKKKKKKKKKK",
+        ".....KAAAAAK....",
+        ".....KAAAAAK....",
+        "....KaaaaaaaK...",
+        "....KKKKKKKKK...",
+    }), Feet);
+
     public static SpriteRenderer AddRenderer(GameObject go, Sprite sprite, int order = 0)
     {
         var sr = go.AddComponent<SpriteRenderer>();
@@ -394,6 +567,15 @@ public static class PixelArt
             if (index >= 0) chars[i] = to[index];
         }
         return new string(chars);
+    });
+
+    // Builds a symmetric picture from its left half (16 chars per row).
+    static string[] Mirror(string[] leftHalves) => System.Array.ConvertAll(leftHalves, half =>
+    {
+        var left = half.PadRight(16, '.').Substring(0, 16).ToCharArray();
+        var right = (char[])left.Clone();
+        System.Array.Reverse(right);
+        return new string(left) + new string(right);
     });
 
     static string[] Repeat(string[] rows, int times)

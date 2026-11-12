@@ -58,6 +58,13 @@ public class Fireball : MonoBehaviour
 
     void OnTriggerEnter2D(Collider2D other)
     {
+        // The boss only takes damage while dazed; otherwise the fireball just burns out on it.
+        if (other.TryGetComponent(out Boss boss))
+        {
+            boss.HitByFireball();
+            Destroy(gameObject);
+            return;
+        }
         if (!other.TryGetComponent(out Enemy enemy) || enemy.IsDead) return;
         enemy.Kill();
         Game.Instance.AddScore(200);

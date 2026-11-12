@@ -172,7 +172,7 @@ public class MainMenu : MonoBehaviour
         info = entries.Length == 0 ? "Todavía no hay puntuaciones" : null;
         rankingLines = new string[entries.Length];
         for (int i = 0; i < entries.Length; i++)
-            rankingLines[i] = $"{entries[i].posicion}. {entries[i].nombreUsuario}   {entries[i].puntos} PUNTOS   (NIVEL {entries[i].nivel})";
+            rankingLines[i] = $"{entries[i].posicion}. {entries[i].nombreUsuario}   {entries[i].puntos} PUNTOS   (MUNDO {entries[i].nivel})";
     }
 
     // If the session expired, the request logged us out: go back to the login page.
@@ -184,7 +184,7 @@ public class MainMenu : MonoBehaviour
     }
 
     static string Describe(SaveData data) =>
-        $"{ApiClient.UserName}:  NIVEL {data.nivel} · {data.puntos} PUNTOS · {data.monedas} MONEDAS · {data.vidas} VIDAS";
+        $"{ApiClient.UserName}:  MUNDO {data.nivel} · {data.puntos} PUNTOS · {data.monedas} MONEDAS · {data.vidas} VIDAS";
 
     void ShowNotice(string text, Color color)
     {

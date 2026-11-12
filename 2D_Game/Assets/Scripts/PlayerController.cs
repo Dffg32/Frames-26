@@ -166,14 +166,39 @@ public class PlayerController : MonoBehaviour
         if (other.TryGetComponent(out Coin coin)) coin.Collect();
         else if (other.TryGetComponent(out PowerUp powerUp)) powerUp.Collect(this);
         else if (other.TryGetComponent(out Goal _)) Game.Instance.Win();
+        else if (other.TryGetComponent(out Lava _)) Die();
+        else TouchDanger(other);
     }
 
     // A power-up touched while it was still rising out of its block gets picked up once it's ready.
+    // Dangers keep hurting while you stay in them, once the blinking after a hit is over.
     void OnTriggerStay2D(Collider2D other)
     {
         if (dead || frozen) return;
         if (other.TryGetComponent(out PowerUp powerUp)) powerUp.Collect(this);
+        else TouchDanger(other);
     }
+
+    // Things you pass through instead of bumping into: projectiles, sparks, ghosts and the boss.
+    void TouchDanger(Collider2D other)
+    {
+        if (other.TryGetComponent(out Hazard _)) Hurt();
+        else if (other.TryGetComponent(out Boss boss)) boss.Touch(this);
+        else if (other.TryGetComponent(out Enemy ghost) && !ghost.IsDead)
+        {
+            if (!HasStar) Hurt();
+            else
+            {
+                ghost.Kill();
+                Game.Instance.AddScore(200);
+            }
+        }
+    }
+
+    public Bounds Bounds => col.bounds;
+
+    // Bounces up off something stomped (the boss uses this).
+    public void Bounce() => body.linearVelocity = new Vector2(body.linearVelocity.x, StompBounce);
 
     public void PowerUp(PowerUpKind kind)
     {
@@ -218,7 +243,8 @@ public class PlayerController : MonoBehaviour
         body.linearVelocity = new Vector2(body.linearVelocity.x, 0f);
     }
 
-    void Hurt()
+    // Small players die; big ones shrink and blink for a moment.
+    public void Hurt()
     {
         if (transforming || HasStar || Time.time < invincibleUntil) return;
         if (level == PowerLevel.Small)
