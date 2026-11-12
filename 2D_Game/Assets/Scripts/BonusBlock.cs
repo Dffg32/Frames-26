@@ -69,6 +69,8 @@ public class BonusBlock : MonoBehaviour
         var body = go.AddComponent<Rigidbody2D>();
         body.bodyType = RigidbodyType2D.Kinematic;
         body.interpolation = RigidbodyInterpolation2D.Interpolate;
+        // The pepper never moves; without this it could fall asleep and stop reporting the player standing in it.
+        body.sleepMode = RigidbodySleepMode2D.NeverSleep;
         var box = go.AddComponent<BoxCollider2D>();
         box.size = new Vector2(0.8f, 0.8f);
         box.isTrigger = true;

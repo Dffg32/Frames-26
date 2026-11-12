@@ -32,7 +32,7 @@ static class LevelPreview
             {
                 Sprite sprite = map[y][x] switch
                 {
-                    '#' => y > 0 && x < map[y - 1].Length && map[y - 1][x] == '#' ? PixelArt.Dirt : PixelArt.Grass,
+                    '#' => Game.IsSolid(x, y - 1) ? PixelArt.Dirt : PixelArt.Grass,
                     'B' => PixelArt.Stone,
                     '!' or 'M' or 'Q' or 'H' => PixelArt.Bonus,
                     'S' => PixelArt.Spiky,

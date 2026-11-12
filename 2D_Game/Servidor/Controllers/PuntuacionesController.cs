@@ -24,6 +24,7 @@ public class PuntuacionesController(JuegardoDbContext db) : ControllerBase
         var mejores = await db.Puntuaciones
             .OrderByDescending(p => p.Puntos)
             .ThenBy(p => p.Fecha)
+            .ThenBy(p => p.Id)
             .Take(top)
             .Select(p => new { p.Usuario!.NombreUsuario, p.Puntos, p.Nivel, p.Fecha })
             .ToListAsync();
@@ -47,8 +48,11 @@ public class PuntuacionesController(JuegardoDbContext db) : ControllerBase
         db.Puntuaciones.Add(puntuacion);
         await db.SaveChangesAsync();
 
-        // Position = how many scores are strictly better, plus one.
-        int posicion = await db.Puntuaciones.CountAsync(p => p.Puntos > puntuacion.Puntos) + 1;
+        // Position = how many scores come before this one in the ranking, plus one.
+        // Same order as Ranking: more points first; on a tie, the older score first.
+        int posicion = await db.Puntuaciones.CountAsync(p =>
+            p.Puntos > puntuacion.Puntos
+            || (p.Puntos == puntuacion.Puntos && (p.Fecha < puntuacion.Fecha || (p.Fecha == puntuacion.Fecha && p.Id < puntuacion.Id)))) + 1;
         string nombre = User.Identity?.Name ?? "";
         return Created("/api/puntuaciones", new PuntuacionDto(posicion, nombre, puntuacion.Puntos, puntuacion.Nivel, puntuacion.Fecha));
     }

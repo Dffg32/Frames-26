@@ -21,7 +21,7 @@ public class PowerUp : MonoBehaviour
     Rigidbody2D body;
     Collider2D col;
     float direction = 1f, verticalSpeed;
-    bool rising = true;
+    bool rising = true, collected;
 
     void Awake()
     {
@@ -67,9 +67,12 @@ public class PowerUp : MonoBehaviour
         if (pos.y < -3f) Destroy(gameObject);
     }
 
+    // Called on enter and every frame of overlap, so touching it while it's still rising
+    // collects it as soon as it finishes; the flag stops a double pickup in the same frame.
     public void Collect(PlayerController player)
     {
-        if (rising) return;
+        if (rising || collected) return;
+        collected = true;
         player.PowerUp(Kind);
         Destroy(gameObject);
     }

@@ -8,6 +8,7 @@ using JuegardoApi.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
@@ -16,8 +17,12 @@ var builder = WebApplication.CreateBuilder(args);
 // ---------- Services ----------
 
 // SQLite database managed with Entity Framework Core (see Data/ and Migrations/).
-builder.Services.AddDbContext<JuegardoDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("Juegardo")));
+// A relative file path is taken from the project folder, not from wherever the server was
+// started, so `dotnet run` from another folder doesn't create a second, empty database.
+var conexion = new SqliteConnectionStringBuilder(builder.Configuration.GetConnectionString("Juegardo"));
+if (conexion.DataSource != ":memory:" && !Path.IsPathRooted(conexion.DataSource))
+    conexion.DataSource = Path.Combine(builder.Environment.ContentRootPath, conexion.DataSource);
+builder.Services.AddDbContext<JuegardoDbContext>(options => options.UseSqlite(conexion.ToString()));
 
 // JWT: refuse to start with a missing or weak signing key.
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>() ?? new JwtOptions();

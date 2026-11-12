@@ -118,7 +118,7 @@ Consultas hechas con Entity Framework Core (LINQ) desde los controladores:
 | Cada usuario solo puede ver y modificar sus propias partidas | `PartidasController.cs` (filtra por el usuario del token) |
 | Validación de todos los datos de entrada (longitudes, caracteres, rangos) | `Servidor/Dtos/` |
 | Límite de 5 intentos de login o registro por minuto (contra fuerza bruta) | Rate limiting en `Program.cs` |
-| Mismo mensaje si falla el usuario o la contraseña (no revela qué cuentas existen) | `AuthController.Login` |
+| El login da el mismo mensaje si falla el usuario o la contraseña | `AuthController.Login` |
 | Los errores internos no se muestran al cliente | `ErrorHandlingMiddleware.cs` |
 | Cabeceras de seguridad (`nosniff`, `X-Frame-Options`, CSP, `no-store`) | `SecurityHeadersMiddleware.cs` |
 | CORS restringido a los orígenes configurados | `Program.cs`, `appsettings.json` |

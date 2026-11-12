@@ -26,7 +26,16 @@ public class AuthController(JuegardoDbContext db, IPasswordHasher<Usuario> hashe
         var usuario = new Usuario { NombreUsuario = datos.NombreUsuario, FechaRegistro = DateTime.UtcNow };
         usuario.ContrasenaHash = hasher.HashPassword(usuario, datos.Contrasena);
         db.Usuarios.Add(usuario);
-        await db.SaveChangesAsync();
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            // Two registrations with the same name at the same moment both pass the check above;
+            // the unique index rejects the second one, which must still get a 409, not a 500.
+            return Conflict(new ErrorDto("Ese nombre de usuario ya existe."));
+        }
 
         return CreatedAtAction(nameof(Perfil), null, CrearSesion(usuario));
     }
@@ -40,7 +49,7 @@ public class AuthController(JuegardoDbContext db, IPasswordHasher<Usuario> hashe
         var resultado = usuario == null
             ? PasswordVerificationResult.Failed
             : hasher.VerifyHashedPassword(usuario, usuario.ContrasenaHash, datos.Contrasena);
-        // Same message whether the user or the password is wrong, so accounts can't be discovered.
+        // Same message whether the user or the password is wrong.
         if (usuario == null || resultado == PasswordVerificationResult.Failed)
             return Unauthorized(new ErrorDto("Usuario o contraseña incorrectos."));
 

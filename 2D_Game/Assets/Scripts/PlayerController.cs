@@ -122,7 +122,12 @@ public class PlayerController : MonoBehaviour
         var b = col.bounds;
         var hits = Physics2D.OverlapBoxAll(new Vector2(b.center.x, b.min.y - 0.05f), new Vector2(b.size.x * 0.8f, 0.1f), 0f);
         foreach (var hit in hits)
-            if (hit != col && !hit.isTrigger) return true;
+        {
+            if (hit == col || hit.isTrigger || hit.TryGetComponent<Enemy>(out _)) continue;
+            // A one-way plank only counts once the feet are on top of it, not while passing up through it.
+            if (hit.usedByEffector && b.min.y < hit.bounds.max.y - 0.05f) continue;
+            return true;
+        }
         return false;
     }
 
@@ -161,6 +166,13 @@ public class PlayerController : MonoBehaviour
         if (other.TryGetComponent(out Coin coin)) coin.Collect();
         else if (other.TryGetComponent(out PowerUp powerUp)) powerUp.Collect(this);
         else if (other.TryGetComponent(out Goal _)) Game.Instance.Win();
+    }
+
+    // A power-up touched while it was still rising out of its block gets picked up once it's ready.
+    void OnTriggerStay2D(Collider2D other)
+    {
+        if (dead || frozen) return;
+        if (other.TryGetComponent(out PowerUp powerUp)) powerUp.Collect(this);
     }
 
     public void PowerUp(PowerUpKind kind)

@@ -26,7 +26,8 @@ public static class SaveSystem
             Debug.Log($"Partida guardada en {FilePath}");
             return true;
         }
-        catch (IOException e)
+        // Not just IOException: a denied write (UnauthorizedAccessException) must also show the error notice.
+        catch (System.Exception e)
         {
             Debug.LogWarning($"No se pudo guardar la partida: {e.Message}");
             return false;

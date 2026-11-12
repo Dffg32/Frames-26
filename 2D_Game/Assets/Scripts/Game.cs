@@ -267,7 +267,8 @@ public class Game : MonoBehaviour
         SpawnPlayer(spawn);
     }
 
-    static bool IsSolid(int x, int y) =>
+    // Also used by the editor's level preview, so grass and dirt look the same there as in play.
+    public static bool IsSolid(int x, int y) =>
         y >= 0 && y < Map.Length && x >= 0 && x < Map[y].Length && "#B!MQ".IndexOf(Map[y][x]) >= 0;
 
     // One collider per horizontal run of ground or planks, so the player doesn't snag on seams.
